@@ -1,0 +1,402 @@
+/* =====================================================================
+   Monkey adventure - world layer
+   One fixed, click-through layer that holds every monkey element so they
+   all share the same viewport coordinate system.
+   ===================================================================== */
+.monkey-world {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  overflow: hidden;
+}
+/* light theme inverts the whole page; invert back so the monkey world keeps its real colours */
+html.theme-light .monkey-world { filter: invert(1) hue-rotate(180deg); }
+.monkey-world.is-paused *,
+.monkey-world.is-paused *::before,
+.monkey-world.is-paused *::after { animation-play-state: paused !important; }
+
+/* =====================================================================
+   Monkey sprite + poses
+   ===================================================================== */
+.mk { display: block; width: 100%; height: 100%; overflow: visible; }
+.mk * { transform-box: view-box; }
+.mk-all { transform-origin: 50px 92px; }
+.mk-head { transform-origin: 50px 46px; }
+.mk-tail { transform-origin: 60px 78px; animation: mk-tail 1.8s ease-in-out infinite alternate; }
+.mk-arm-l { transform-origin: 31px 54px; transform: rotate(7deg); }
+.mk-arm-r { transform-origin: 69px 54px; transform: rotate(-7deg); }
+.mk-leg-l { transform-origin: 42px 72px; }
+.mk-leg-r { transform-origin: 58px 72px; }
+.mk-eye-l { transform-origin: 43px 30px; }
+.mk-eye-r { transform-origin: 57px 30px; }
+.mk-arm, .mk-leg { transition: transform 0.18s ease-out; }
+
+.mk-eyes-closed, .mk-brows, .mk-hold-banana, .mk-cheeks, .mk-tongue, .mk-m { display: none; }
+.mk-m-smile { display: inline; }
+
+.mk[data-eyes="closed"] .mk-eyes-open { display: none; }
+.mk[data-eyes="closed"] .mk-eyes-closed { display: inline; }
+.mk[data-paused="true"] * { animation-play-state: paused; }
+
+@keyframes mk-tail { from { transform: rotate(-6deg); } to { transform: rotate(9deg); } }
+
+/* idle */
+.mk[data-pose="idle"] .mk-all { animation: mk-breathe 2.6s ease-in-out infinite; }
+@keyframes mk-breathe {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(1.015, 1.035); }
+}
+
+/* running / chasing */
+.mk:is([data-pose="running"], [data-pose="chasing"]) .mk-all { animation: mk-bob 0.28s ease-in-out infinite alternate; }
+.mk[data-pose="chasing"] .mk-all { animation-duration: 0.22s; }
+@keyframes mk-bob {
+  from { transform: translateY(0) rotate(-3deg); }
+  to { transform: translateY(-4px) rotate(3deg); }
+}
+.mk:is([data-pose="running"], [data-pose="chasing"]) .mk-leg-l { animation: mk-stride 0.28s ease-in-out infinite alternate; }
+.mk:is([data-pose="running"], [data-pose="chasing"]) .mk-leg-r { animation: mk-stride 0.28s ease-in-out infinite alternate-reverse; }
+.mk:is([data-pose="running"], [data-pose="chasing"]) .mk-arm-l { animation: mk-swing 0.28s ease-in-out infinite alternate-reverse; }
+.mk:is([data-pose="running"], [data-pose="chasing"]) .mk-arm-r { animation: mk-swing 0.28s ease-in-out infinite alternate; }
+@keyframes mk-stride { from { transform: rotate(-38deg); } to { transform: rotate(38deg); } }
+@keyframes mk-swing { from { transform: rotate(-50deg); } to { transform: rotate(50deg); } }
+
+/* jumping */
+.mk[data-pose="jumping"] .mk-arm-l { transform: rotate(150deg); }
+.mk[data-pose="jumping"] .mk-arm-r { transform: rotate(-150deg); }
+.mk[data-pose="jumping"] .mk-leg-l { transform: rotate(22deg); }
+.mk[data-pose="jumping"] .mk-leg-r { transform: rotate(-22deg); }
+.mk[data-pose="jumping"] .mk-all { transform: scale(0.96, 1.08); }
+
+/* eating */
+.mk[data-pose="eating"] .mk-arm-l { transform: rotate(-120deg); }
+.mk[data-pose="eating"] .mk-arm-r { transform: rotate(120deg); }
+.mk[data-pose="eating"] .mk-hold-banana,
+.mk[data-pose="eating"] .mk-cheeks { display: inline; }
+.mk[data-pose="eating"] .mk-m-smile { display: none; }
+.mk[data-pose="eating"] .mk-m-chew { display: inline; transform-origin: 50px 43px; animation: mk-chew 0.22s ease-in-out infinite alternate; }
+.mk[data-pose="eating"] .mk-head { animation: mk-nod 0.44s ease-in-out infinite alternate; }
+@keyframes mk-chew { from { transform: scaleY(0.4); } to { transform: scaleY(1.3); } }
+@keyframes mk-nod { from { transform: rotate(-2deg); } to { transform: rotate(3deg); } }
+
+/* catching a bug (pounce) */
+.mk[data-pose="catchingBug"] .mk-arm-l { transform: rotate(140deg); }
+.mk[data-pose="catchingBug"] .mk-arm-r { transform: rotate(-140deg); }
+.mk[data-pose="catchingBug"] .mk-leg-l { transform: rotate(28deg); }
+.mk[data-pose="catchingBug"] .mk-leg-r { transform: rotate(-28deg); }
+.mk[data-pose="catchingBug"] .mk-all { transform: rotate(8deg) scale(1.04, 0.96); }
+
+/* climbing (limbs alternate; pauses when the page is not scrolling) */
+.mk[data-pose="climbing"] .mk-arm-l { animation: mk-climb-l 0.8s ease-in-out infinite; }
+.mk[data-pose="climbing"] .mk-arm-r { animation: mk-climb-r 0.8s ease-in-out infinite; }
+.mk[data-pose="climbing"] .mk-leg-l { animation: mk-climb-leg-l 0.8s ease-in-out infinite; }
+.mk[data-pose="climbing"] .mk-leg-r { animation: mk-climb-leg-r 0.8s ease-in-out infinite; }
+.mk[data-pose="climbing"] .mk-all { animation: mk-sway 1.6s ease-in-out infinite; }
+@keyframes mk-climb-l { 0%, 100% { transform: rotate(168deg); } 50% { transform: rotate(40deg); } }
+@keyframes mk-climb-r { 0%, 100% { transform: rotate(-40deg); } 50% { transform: rotate(-168deg); } }
+@keyframes mk-climb-leg-l { 0%, 100% { transform: rotate(-22deg); } 50% { transform: rotate(12deg); } }
+@keyframes mk-climb-leg-r { 0%, 100% { transform: rotate(12deg); } 50% { transform: rotate(-22deg); } }
+@keyframes mk-sway { 0%, 100% { transform: translateX(-1.5px); } 50% { transform: translateX(1.5px); } }
+
+/* eyes closed - "I see nothing" */
+.mk[data-pose="eyesClosed"] .mk-arm-l { transform: rotate(168deg); }
+.mk[data-pose="eyesClosed"] .mk-arm-r { transform: rotate(-168deg); }
+.mk[data-pose="eyesClosed"] .mk-leg-l { transform: rotate(-10deg); }
+.mk[data-pose="eyesClosed"] .mk-leg-r { transform: rotate(10deg); }
+.mk[data-pose="eyesClosed"] .mk-eyes-open { display: none; }
+.mk[data-pose="eyesClosed"] .mk-eyes-closed { display: inline; }
+.mk[data-pose="eyesClosed"] .mk-m-smile { display: none; }
+.mk[data-pose="eyesClosed"] .mk-m-o { display: inline; }
+
+/* repairing the battery - holds it at its belly, concentrating */
+.mk[data-pose="repairingBattery"] .mk-arm-l { animation: mk-fiddle-l 0.4s ease-in-out infinite alternate; }
+.mk[data-pose="repairingBattery"] .mk-arm-r { animation: mk-fiddle-r 0.4s ease-in-out infinite alternate; }
+.mk[data-pose="repairingBattery"] .mk-leg-l { animation: mk-stride-s 0.3s ease-in-out infinite alternate; }
+.mk[data-pose="repairingBattery"] .mk-leg-r { animation: mk-stride-s 0.3s ease-in-out infinite alternate-reverse; }
+.mk[data-pose="repairingBattery"] .mk-head { transform: rotate(-5deg); }
+.mk[data-pose="repairingBattery"] .mk-tongue { display: inline; }
+@keyframes mk-fiddle-l { from { transform: rotate(-58deg); } to { transform: rotate(-68deg); } }
+@keyframes mk-fiddle-r { from { transform: rotate(58deg); } to { transform: rotate(68deg); } }
+@keyframes mk-stride-s { from { transform: rotate(-16deg); } to { transform: rotate(16deg); } }
+
+/* celebrating */
+.mk[data-pose="celebrating"] .mk-arm-l { animation: mk-cheer-l 0.35s ease-in-out infinite alternate; }
+.mk[data-pose="celebrating"] .mk-arm-r { animation: mk-cheer-r 0.35s ease-in-out infinite alternate; }
+.mk[data-pose="celebrating"] .mk-all { animation: mk-hop 0.5s ease-in-out infinite alternate; }
+@keyframes mk-cheer-l { from { transform: rotate(150deg); } to { transform: rotate(176deg); } }
+@keyframes mk-cheer-r { from { transform: rotate(-150deg); } to { transform: rotate(-176deg); } }
+@keyframes mk-hop { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+
+/* review surprise - wide eyes, raised brows, big shout (brief shake only) */
+.mk[data-pose="reviewSurprise"] .mk-arm-l { transform: rotate(125deg); }
+.mk[data-pose="reviewSurprise"] .mk-arm-r { transform: rotate(-125deg); }
+.mk[data-pose="reviewSurprise"] .mk-eye { transform: scale(1.35); }
+.mk[data-pose="reviewSurprise"] .mk-brows { display: inline; }
+.mk[data-pose="reviewSurprise"] .mk-m-open { transform-origin: 50px 41px; transform: scale(1.5, 1.7); }
+.mk[data-pose="reviewSurprise"] .mk-head { animation: mk-gasp 0.12s ease-in-out 6 alternate; }
+@keyframes mk-gasp { from { transform: rotate(-2deg); } to { transform: rotate(2deg); } }
+
+/* mouth per pose */
+.mk:is([data-pose="chasing"], [data-pose="jumping"], [data-pose="catchingBug"], [data-pose="celebrating"], [data-pose="reviewSurprise"]) .mk-m-smile { display: none; }
+.mk:is([data-pose="chasing"], [data-pose="jumping"], [data-pose="catchingBug"], [data-pose="celebrating"], [data-pose="reviewSurprise"]) .mk-m-open { display: inline; }
+
+/* ---------- actor ---------- */
+.mk-actor { position: absolute; left: 0; top: 0; z-index: 74; pointer-events: none; will-change: transform; }
+.mk-actor[data-hidden="true"] { visibility: hidden; }
+.mk-flip { width: 100%; height: 100%; transform: scaleX(var(--dir, 1)); }
+.mk-bubble {
+  position: absolute; left: 50%; bottom: 96%;
+  transform: translateX(-50%);
+  min-width: 22px; padding: 2px 8px;
+  border-radius: 10px; background: #fff; color: #b91c1c;
+  font: 800 15px/1.3 system-ui, sans-serif; text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  animation: mk-pop-in 0.25s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+@keyframes mk-pop-in { from { transform: translateX(-50%) scale(0.3); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
+
+/* =====================================================================
+   Intro scene: bugs, banana, skip
+   ===================================================================== */
+.mk-scene { position: absolute; inset: 0; pointer-events: none; }
+.mk-bug { position: absolute; left: 0; top: 0; width: 22px; height: 22px; z-index: 73; pointer-events: none; will-change: transform; }
+.mk-bug-inner { display: block; transition: transform 0.25s ease, opacity 0.25s ease; }
+.mk-bug.caught .mk-bug-inner { transform: scale(0); opacity: 0; }
+.bug-legs { animation: bug-wiggle 0.16s linear infinite alternate; transform-origin: 12px 14px; transform-box: view-box; }
+@keyframes bug-wiggle { from { transform: scaleX(0.9); } to { transform: scaleX(1.08); } }
+
+.mk-banana-btn {
+  position: absolute; left: 56%; bottom: 24%;
+  width: 60px; height: 60px; margin-left: -30px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.08);
+  cursor: pointer; pointer-events: auto; z-index: 73;
+  animation: mk-banana-bob 1.6s ease-in-out infinite;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.mk-banana-btn:hover { background: rgba(255, 255, 255, 0.16); }
+.mk-banana-btn:focus-visible { outline: 3px solid #fbbf24; outline-offset: 3px; }
+.mk-banana-btn[data-state="taken"], .mk-banana-btn[data-state="peel"] { opacity: 0; pointer-events: none; animation: none; }
+@keyframes mk-banana-bob { 0%, 100% { transform: translateY(0) rotate(-6deg); } 50% { transform: translateY(-8px) rotate(6deg); } }
+.mk-banana-hint {
+  position: absolute; left: 56%; bottom: calc(24% + 70px);
+  transform: translateX(-50%);
+  padding: 6px 12px; border-radius: 999px; white-space: nowrap;
+  background: #fef3c7; color: #78350f; font: 700 12px/1 system-ui, sans-serif;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); pointer-events: none; z-index: 73;
+}
+.mk-peel {
+  position: absolute; left: 56%; bottom: calc(24% + 10px);
+  width: 34px; height: 12px; margin-left: -17px;
+  border-radius: 0 0 18px 18px; background: #f5c518; border: 2px solid #b98a00; border-top: 0;
+  transform: rotate(-8deg); pointer-events: none; z-index: 72;
+}
+.mk-skip {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(23, 23, 23, 0.88); color: #ececec;
+  font: 600 12px/1 system-ui, sans-serif; cursor: pointer; pointer-events: auto; z-index: 76;
+}
+.mk-skip:hover { background: #303030; }
+.mk-skip:focus-visible { outline: 2px solid #fbbf24; outline-offset: 2px; }
+
+/* =====================================================================
+   Achievement toast
+   ===================================================================== */
+.mk-toast-region { position: absolute; top: 16px; left: 0; right: 0; display: flex; justify-content: center; z-index: 90; pointer-events: none; }
+.mk-toast {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 18px 14px 12px; border-radius: 14px;
+  background: linear-gradient(160deg, #2b2b2b, #171717); color: #ececec;
+  border: 1px solid #4a4a4a; box-shadow: 0 12px 34px rgba(0, 0, 0, 0.55);
+  animation: mk-toast-in 0.55s cubic-bezier(0.2, 1.3, 0.4, 1) both, mk-toast-out 0.4s ease 4.3s forwards;
+}
+.mk-toast-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #f59e0b; color: #1c1917; }
+.mk-toast-text { display: flex; flex-direction: column; text-align: left; }
+.mk-toast-text small { font: 700 10px/1.2 system-ui, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: #fbbf24; }
+.mk-toast-text strong { font: 700 16px/1.3 system-ui, sans-serif; }
+.mk-toast-bar { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: #f59e0b; transform-origin: left; animation: mk-toast-bar 4.6s linear forwards; }
+@keyframes mk-toast-in { from { transform: translateY(-140%) scale(0.9); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes mk-toast-out { to { opacity: 0; transform: translateY(-30%); } }
+@keyframes mk-toast-bar { to { transform: scaleX(0); } }
+
+/* =====================================================================
+   Ladder scrollbar
+   ===================================================================== */
+.ladder { position: absolute; inset: 0; pointer-events: none; z-index: 71; }
+.ladder-rail {
+  position: absolute; pointer-events: auto; touch-action: none; cursor: ns-resize;
+  border-radius: 4px;
+  background:
+    linear-gradient(to right, #8a5a2b 0 3px, transparent 3px calc(100% - 3px), #8a5a2b calc(100% - 3px)),
+    repeating-linear-gradient(to bottom, transparent 0 18px, #b9824a 18px 21px);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  opacity: 0.92;
+}
+.ladder-rail:focus-visible { outline: 2px solid #fbbf24; outline-offset: 4px; }
+.ladder-fill { position: absolute; inset: 0; transform-origin: top; transform: scaleY(0); background: linear-gradient(to bottom, rgba(251, 191, 36, 0.38), rgba(251, 191, 36, 0.06)); border-radius: 4px; pointer-events: none; }
+.ladder-tick { position: absolute; transform: translateY(-50%); display: flex; align-items: center; gap: 8px; padding: 6px 4px; pointer-events: auto; text-decoration: none; }
+.ladder-tick-dot { width: 9px; height: 9px; border-radius: 50%; background: #fbbf24; box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45); transition: transform 0.15s ease; }
+.ladder-tick-label {
+  padding: 3px 8px; border-radius: 6px; background: rgba(23, 23, 23, 0.92); color: #ececec;
+  font: 600 11px/1.2 system-ui, sans-serif; white-space: nowrap;
+  opacity: 0; transform: translateX(6px); transition: opacity 0.15s ease, transform 0.15s ease; pointer-events: none;
+}
+.ladder-tick:hover .ladder-tick-label, .ladder-tick:focus-visible .ladder-tick-label { opacity: 1; transform: none; }
+.ladder-tick:hover .ladder-tick-dot, .ladder-tick:focus-visible .ladder-tick-dot { transform: scale(1.35); }
+.ladder-tick:focus-visible { outline: 2px solid #fbbf24; outline-offset: 2px; border-radius: 8px; }
+
+/* =====================================================================
+   Battery compartment + control board
+   ===================================================================== */
+.bc { position: absolute; left: 4px; bottom: 12px; width: 60px; height: 88px; pointer-events: none; z-index: 72; }
+@media (min-width: 768px) { .bc { bottom: 72px; } } /* sits just above the sidebar profile block */
+
+.bc-frame {
+  position: absolute; inset: 0; pointer-events: auto;
+  border-radius: 12px; border: 1px solid #4a4a4a;
+  background: linear-gradient(160deg, #303030, #1b1b1b);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.bc-frame-fixed { animation: bc-frame-glow 1.2s ease 2; }
+@keyframes bc-frame-glow { 50% { box-shadow: 0 0 22px 4px rgba(74, 222, 128, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08); } }
+
+.bc-top { height: 14px; display: flex; align-items: center; justify-content: space-between; padding: 0 5px 0 4px; }
+.bc-top-label { font: 700 7px/1 system-ui, sans-serif; letter-spacing: 0.2em; color: #8a8a8a; }
+.bc-handle { display: grid; place-items: center; width: 22px; height: 22px; margin: -4px 0 -4px -4px; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; }
+.bc-handle:focus-visible, .bc-cover-btn:focus-visible, .bc-latch:focus-visible, .bc-close:focus-visible, .bc-shake:focus-visible { outline: 2px solid #fbbf24; outline-offset: 2px; }
+
+.bc-led { display: inline-block; width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.bc-led-ok { background: #22c55e; box-shadow: 0 0 6px rgba(34, 197, 94, 0.7); animation: bc-breathe 3s ease-in-out infinite; }
+.bc-led-out { background: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.8); animation: bc-blink 0.9s steps(2) infinite; }
+.bc-led-lit { background: #4ade80; box-shadow: 0 0 14px 4px rgba(74, 222, 128, 0.9); animation: bc-lit 0.9s ease 3; }
+@keyframes bc-breathe { 50% { opacity: 0.55; } }
+@keyframes bc-blink { 50% { opacity: 0.25; } }
+@keyframes bc-lit { 50% { transform: scale(1.5); } }
+
+.bc-body { position: absolute; left: 0; right: 0; top: 14px; bottom: 0; }
+.bc-slot {
+  position: absolute; inset: 6px; border-radius: 7px; overflow: hidden;
+  background: linear-gradient(#050505, #131313); box-shadow: inset 0 3px 8px #000;
+}
+.bc-plus, .bc-minus { position: absolute; left: 50%; transform: translateX(-50%); font: 700 10px/1 system-ui, sans-serif; color: #6b6b6b; }
+.bc-plus { top: 3px; }
+.bc-minus { bottom: 3px; }
+
+.bc-cover {
+  position: absolute; inset: 0; border-radius: 8px;
+  background: linear-gradient(160deg, #3b3b3b, #262626); border: 1px solid #4d4d4d;
+  background-image:
+    radial-gradient(circle at 7px 7px, #888 0 2px, transparent 2.5px),
+    radial-gradient(circle at calc(100% - 7px) 7px, #888 0 2px, transparent 2.5px),
+    linear-gradient(160deg, #3b3b3b, #262626);
+  transform-origin: 50% 100%;
+  transform: perspective(240px) rotateX(0deg);
+  transition: transform 0.65s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+.bc-cover.is-open { transform: perspective(240px) rotateX(-105deg); pointer-events: none; }
+.bc-cover.is-open .bc-cover-btn, .bc-cover.is-open .bc-latch { visibility: hidden; }
+.bc-cover-btn {
+  width: 100%; height: 100%; padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  color: #d4d4d4; font: 700 8px/1 system-ui, sans-serif; letter-spacing: 0.2em;
+}
+.bc-cover-btn:hover { color: #fff; }
+.bc-latch { position: absolute; right: 3px; bottom: 3px; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: transparent; cursor: pointer; display: grid; place-items: center; }
+.bc-latch i { display: block; width: 11px; height: 11px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #aaa, #444); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.5); position: relative; }
+.bc-latch i::after { content: ""; position: absolute; left: 1.5px; right: 1.5px; top: 50%; height: 1.5px; background: #1a1a1a; transform: rotate(35deg); }
+.bc-latch:hover i { background: radial-gradient(circle at 35% 30%, #ddd, #666); }
+
+/* the board folds up on a hinge above the compartment */
+.bc-panel {
+  position: absolute; left: 0; bottom: calc(100% + 10px);
+  width: min(324px, calc(100vw - 16px)); max-height: min(72vh, 460px); overflow: auto;
+  padding: 16px 16px 14px; border-radius: 16px;
+  background: linear-gradient(160deg, #2b2b2b, #1c1c1c 60%, #232323);
+  border: 1px solid #3a3a3a;
+  box-shadow: 0 0 0 5px #111, 0 24px 60px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  color: #ececec; text-align: left;
+  transform-origin: 50% 100%;
+  transform: perspective(700px) rotateX(-90deg);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: transform 0.55s cubic-bezier(0.2, 1.2, 0.4, 1), opacity 0.3s ease, visibility 0s linear 0.55s;
+}
+.bc-panel.is-open { transform: perspective(700px) rotateX(0deg); opacity: 1; visibility: visible; pointer-events: auto; transition-delay: 0s; }
+.bc-panel .gs-screw { position: absolute; }
+.bc-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 4px 0 12px; border-bottom: 1px dashed #3d3d3d; }
+.bc-panel-head p { margin: 0; font: 700 12px/1.2 system-ui, sans-serif; letter-spacing: 0.2em; }
+.bc-panel-head small { color: #8e8e8e; font: 400 11px/1.4 system-ui, sans-serif; }
+.bc-close { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: #b4b4b4; cursor: pointer; }
+.bc-close:hover { background: #303030; color: #fff; }
+.bc-levers { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px 14px; padding: 16px 0 6px; }
+.bc-shake {
+  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 12px; padding: 10px 12px;
+  border: 1px solid #3d3d3d; border-radius: 10px; background: #1f1f1f; color: #d4d4d4;
+  font: 600 12px/1.2 system-ui, sans-serif; cursor: pointer;
+}
+.bc-shake[aria-pressed="true"] { border-color: #34d399; color: #6ee7b7; }
+.bc-status { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; padding-top: 12px; border-top: 1px dashed #3d3d3d; color: #a3a3a3; font: 400 11px/1.4 system-ui, sans-serif; }
+
+/* the battery sprite lives in the world layer so it can fall to the floor */
+.bc-battery { position: absolute; left: 0; top: 0; z-index: 75; pointer-events: none; opacity: 0; will-change: transform; }
+.bc-battery.is-visible { opacity: 1; }
+.bc-battery-nub { position: absolute; left: 50%; top: -3px; width: 8px; height: 4px; margin-left: -4px; border-radius: 2px 2px 0 0; background: #cbd5e1; }
+.bc-battery-body {
+  position: absolute; inset: 0; border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; padding: 3px 0;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24 45%, #d97706); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.bc-battery-body b { font: 800 10px/1 system-ui, sans-serif; color: #1c1917; }
+.bc-battery-body i { display: block; width: 12px; height: 4px; border-radius: 1px; background: #1c1917; opacity: 0.8; }
+
+/* =====================================================================
+   Reviews surprise
+   ===================================================================== */
+.rv { --rv-size: min(64vw, 340px); position: absolute; inset: 0; z-index: 85; pointer-events: none; }
+.rv-dim { position: absolute; inset: 0; background: radial-gradient(circle at 50% 100%, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.08) 70%); animation: rv-dim-in 0.5s ease both; }
+@keyframes rv-dim-in { from { opacity: 0; } to { opacity: 1; } }
+.rv-leave .rv-dim { animation: rv-dim-out 0.6s ease both; }
+@keyframes rv-dim-out { from { opacity: 1; } to { opacity: 0; } }
+.rv-monkey { position: absolute; left: 50%; bottom: 0; width: var(--rv-size); height: var(--rv-size); margin-left: calc(var(--rv-size) / -2); transform-origin: 50% 100%; animation: rv-pop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+@keyframes rv-pop {
+  0% { transform: translateY(110%) scale(0.5); }
+  60% { transform: translateY(-6%) scale(1.18); }
+  100% { transform: translateY(0) scale(1); }
+}
+.rv-leave .rv-monkey { animation: rv-away 0.6s ease-in both; }
+@keyframes rv-away { to { transform: translate(38vw, -30vh) scale(0.12); opacity: 0; } }
+.rv-bubble {
+  position: absolute; left: 50%; bottom: calc(var(--rv-size) * 0.92); transform: translateX(-50%);
+  width: max-content; max-width: min(86vw, 520px); margin: 0; padding: 12px 18px; border-radius: 18px;
+  background: #fff; color: #171717; text-align: center;
+  font: 800 clamp(15px, 3.2vw, 22px)/1.25 system-ui, sans-serif; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  animation: rv-bubble-in 0.35s cubic-bezier(0.3, 1.5, 0.5, 1) 0.3s both;
+}
+@keyframes rv-bubble-in { from { transform: translateX(-50%) scale(0.5); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
+.rv-leave .rv-bubble { opacity: 0; transition: opacity 0.3s ease; animation: none; }
+.rv-skip {
+  position: absolute; right: 18px; bottom: 18px; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(23, 23, 23, 0.9); color: #ececec; font: 600 12px/1 system-ui, sans-serif;
+  cursor: pointer; pointer-events: auto;
+}
+.rv-skip:hover { background: #303030; }
+.rv-skip:focus-visible { outline: 2px solid #fbbf24; outline-offset: 2px; }
+/* reduced motion: a calm corner banner instead of the zoom */
+.rv-reduced .rv-dim { display: none; }
+.rv-reduced { --rv-size: 96px; }
+.rv-reduced .rv-monkey { left: 18px; margin-left: 0; animation: none; }
+.rv-reduced .rv-bubble { left: 124px; bottom: 30px; transform: none; max-width: min(70vw, 420px); animation: none; text-align: left; font-size: 14px; }
+.rv-reduced.rv-leave .rv-monkey { animation: none; opacity: 0; transition: opacity 0.4s ease; }
+
+/* =====================================================================
+   Reduced motion: no decorative loops, instant transitions
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .mk, .mk *, .mk-banana-btn, .bug-legs, .bc-led, .bc-frame, .mk-bubble { animation: none !important; }
+  .bc-cover, .bc-panel, .mk-actor, .bc-battery { transition-duration: 0.01s !important; }
+  .mk-toast { animation: mk-toast-fade 0.3s ease both, mk-toast-out 0.3s ease 4.3s forwards !important; }
+  @keyframes mk-toast-fade { from { opacity: 0; } to { opacity: 1; } }
+  .mk-toast-bar { animation: none !important; }
+}
