@@ -2,11 +2,10 @@ import NavBar from "../components/NavBar";
 import Hero from "../components/Hero.jsx"
 import HeroAlt001 from "../components/HeroAlt001.jsx"
 import Sidebar from "../components/Sidebar.jsx"
-import Home002 from "../components/Home002.jsx"
 export default function Home() {
 
   return (
-    <div className="flex min-h-screen bg-[#212121] text-white">
+    <div className="flex min-h-screen bg-[#0B0F19] text-white">
       <Sidebar />
 
       <main className="min-w-0 flex-1">
