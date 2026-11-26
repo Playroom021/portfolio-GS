@@ -34,7 +34,7 @@ export default function Home() {
         >
           <span className="h-2 w-2 rounded-full bg-emerald-400" />
           <span className="text-xs text-[#b4b4b4] sm:text-sm">
-            Welcome to my portfolio
+            Welcome to Playroom 021
           </span>
         </div>
 

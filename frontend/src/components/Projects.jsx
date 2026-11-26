@@ -9,8 +9,8 @@ const projects = [
     technologies: ["React", "Python", "FastAPI", "TensorFlow", "MongoDB"],
     status: "In development",
     accent: "from-emerald-500/15 to-transparent",
-    github: "",
-    demo: "",
+    github: "https://github.com/Playroom021/CattleEye2.0",
+    demo: "https://cattle-eye2-0.vercel.app/",
   },
   {
     number: "02",
@@ -140,9 +140,9 @@ export default function Projects() {
       <div className="mx-auto max-w-6xl">
         {/* Section heading */}
         <div className="mb-12">
-          <p className="mb-3 text-xs font-medium uppercase
+            <p className="mb-3 text-xs font-medium uppercase
                         tracking-[0.2em] text-[#8e8e8e]">
-            Selected work
+            
           </p>
 
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">

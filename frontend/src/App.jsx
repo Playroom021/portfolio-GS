@@ -16,14 +16,13 @@ import './App.css';
 export default function App() {
   const [powered, setPowered] = useState(false);
   const [introDone, setIntroDone] = useState(false);
-  const [settings, toggle] = useSettings();
+  const [settings] = useSettings();
 
   return (
     <>
       {!introDone && (
         <Intro
           settings={settings}
-          toggle={toggle}
           onPower={() => {
             setPowered(true);
             setTimeout(() => setIntroDone(true), 1000);
